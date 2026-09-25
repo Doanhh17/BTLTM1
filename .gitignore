@@ -1,0 +1,8 @@
+# Bỏ qua file test 2 người chơi ở máy cá nhân
+twoPlayer.html
+
+# Bỏ qua các file rác của hệ điều hành và VS Code (nên có)
+.DS_Store
+Thumbs.db
+.vscode/
+twoPlayer.html
