@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OTTv2 — Đấu trường 4 bàn</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    /* Cùng bảng màu với index.html (Bài 1) */
+    :root {
+      --bg: #0b1220;
+      --panel: rgba(15, 23, 42, .82);
+      --line: rgba(255, 255, 255, .08);
+      --p1: #14b8a6;
+      --p2: #f43f5e;
+      --goal: #fbbf24;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --hdr: 58px;          /* chiều cao thanh tiêu đề */
+      --gap: 12px;
+      --side: 230px;        /* cột thông tin bên phải mỗi bàn */
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--bg); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background-attachment: fixed;
+      font-family: "Be Vietnam Pro", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(20,184,166,.16), transparent 50%),
+        radial-gradient(900px 500px at 100% 110%, rgba(244,63,94,.14), transparent 50%),
+        var(--bg);
+    }
+
+    /* ---------- Thanh tiêu đề ---------- */
+    header {
+      height: var(--hdr);
+      display: flex; align-items: center; gap: 14px;
+      padding: 0 var(--gap);
+    }
+    h1 { margin: 0; font-size: 1.1rem; letter-spacing: .03em; white-space: nowrap; }
+    h1 span { color: var(--p1); }
+    h1 small { color: var(--muted); font-weight: 400; font-size: .9rem; margin-left: 6px; }
+    .name { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 14px; color: var(--muted); }
+    #player-name {
+      width: 170px; padding: 7px 10px; border-radius: 10px;
+      border: 1px solid var(--line); background: var(--panel);
+      color: var(--text); font: inherit;
+    }
+    #player-name:focus { outline: 2px solid var(--p1); outline-offset: 1px; }
+    nav { display: flex; gap: 14px; font-size: 14px; }
+    nav a { color: var(--muted); text-decoration: none; }
+    nav a:hover { color: var(--text); }
+
+    .help { position: relative; font-size: 14px; }
+    .help summary { cursor: pointer; color: var(--muted); list-style: none; }
+    .help summary::-webkit-details-marker { display: none; }
+    .help summary:hover, .help[open] summary { color: var(--text); }
+    .help > div {
+      position: absolute; right: 0; top: 30px; z-index: 30; width: 320px;
+      background: #0f172a; border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 14px; line-height: 1.55; box-shadow: 0 20px 40px rgba(0,0,0,.5);
+    }
+    .help p { margin: 0 0 8px; }
+    .help p:last-child { margin: 0; }
+    .key { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; }
+    .key.move { background: rgba(20,184,166,.9); }
+    .key.attack { border: 2px solid var(--p2); }
+    .key.goal { border-radius: 3px; border: 2px solid var(--goal); }
+
+    /* ---------- 4 bàn ở 4 góc, vừa khít 1 màn hình ---------- */
+    .arena {
+      height: calc(100vh - var(--hdr));
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: var(--gap);
+      padding: 0 var(--gap) var(--gap);
+    }
+
+    /* Mỗi bàn: bàn cờ bên trái, thông tin bên phải */
+    .table {
+      min-width: 0; min-height: 0; overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-rows: auto auto auto auto 1fr auto;
+      grid-template-areas:
+        "board head"
+        "board seats"
+        "board counts"
+        "board status"
+        "board ."
+        "board actions";
+      column-gap: 14px; row-gap: 10px;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    /* Bàn mình đang ngồi */
+    .table:has(.seat.me) { border-color: rgba(226,232,240,.3); }
+    /* Tới lượt mình: viền vàng nổi bật */
+    .table:has(.t-status.go) {
+      border-color: var(--goal);
+      box-shadow: 0 0 0 1px var(--goal), 0 0 28px rgba(251,191,36,.22);
+    }
+
+    .t-head { grid-area: head; display: flex; align-items: center; gap: 8px; font-size: 1.05rem; }
+    .table:has(.seat.me) .t-head::after {
+      content: "Bàn của bạn";
+      font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+      background: rgba(226,232,240,.12); color: var(--text);
+    }
+
+    /* Ghế ngồi */
+    .t-seats { grid-area: seats; display: flex; flex-direction: column; gap: 6px; }
+    .seat {
+      display: block; width: 100%; text-align: left;
+      padding: 7px 10px; border-radius: 8px; font-size: 14px;
+      background: rgba(255,255,255,.04);
+      border-left: 3px solid var(--line);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .seat.P1 { border-left-color: var(--p1); color: var(--p1); }
+    .seat.P2 { border-left-color: var(--p2); color: var(--p2); }
+    .seat.me { background: rgba(255,255,255,.10); font-weight: 800; }
+    .seat.empty { color: var(--muted); font-style: italic; }
+    button.seat {
+      cursor: pointer; font: inherit; font-size: 14px; font-weight: 600;
+      border-top: 1px dashed currentColor; border-right: 1px dashed currentColor;
+      border-bottom: 1px dashed currentColor;
+      background: transparent;
+    }
+    button.seat:hover { background: rgba(255,255,255,.07); }
+
+    /* Số quân còn lại */
+    .t-counts {
+      grid-area: counts; display: flex; flex-direction: column; gap: 4px;
+      font-size: 14px; letter-spacing: .02em;
+    }
+    .t-counts span { display: flex; gap: 10px; }
+    .t-counts .P1 { color: var(--p1); }
+    .t-counts .P2 { color: var(--p2); }
+
+    /* Trạng thái */
+    .t-status {
+      grid-area: status;
+      font-size: 13px; line-height: 1.45; color: var(--muted);
+      padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.04);
+    }
+    .t-status.go { color: #0b1220; background: var(--goal); font-weight: 700; }
+    .t-status.win { color: var(--goal); background: rgba(251,191,36,.12); font-weight: 700; }
+    .t-error { grid-column: 1 / -1; color: var(--p2); }
+
+    /* Nút */
+    .t-actions { grid-area: actions; display: flex; flex-wrap: wrap; gap: 6px; }
+    .t-actions button {
+      border: 0; border-radius: 8px; padding: 6px 10px; cursor: pointer;
+      font: inherit; font-size: 13px; font-weight: 600;
+      background: #1d4ed8; color: #fff;
+    }
+    .t-actions button[data-act="leave"] { background: rgba(255,255,255,.1); }
+    .t-actions button[data-act="clear"] {
+      background: transparent; color: var(--muted); border: 1px solid var(--line);
+    }
+    .t-actions button[data-act="clear"]:hover { color: var(--p2); border-color: var(--p2); }
+    button:focus-visible { outline: 2px solid var(--goal); outline-offset: 2px; }
+
+    /* ---------- Bàn cờ (cùng tên class với Bài 1) ---------- */
+    .t-board {
+      grid-area: board; align-self: center;
+      /* Cạnh bàn = min(nửa chiều cao vùng chơi, nửa chiều rộng trừ cột thông tin) */
+      width: max(220px, min(
+        calc((100vh - var(--hdr) - 3 * var(--gap)) / 2 - 26px),
+        calc(50vw - var(--side) - 60px)));
+      display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px;
+      padding: 6px; background: #0f172a; border-radius: 12px;
+      container-type: inline-size;
+    }
+    .cell {
+      aspect-ratio: 1; border: 0; padding: 0; border-radius: 5px;
+      display: grid; place-items: center; position: relative; cursor: pointer;
+    }
+    .cell.light { background: #334155; }
+    .cell.dark { background: #1e293b; }
+    .cell:hover { filter: brightness(1.18); }
+    .cell.goal { box-shadow: inset 0 0 0 2px var(--goal); }
+    .cell.last { box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); }
+    .cell.selected { outline: 2px solid #fff; outline-offset: -2px; }
+    .cell.valid::after {
+      content: ""; width: 28%; height: 28%; border-radius: 50%;
+      background: rgba(20,184,166,.9);
+    }
+    .cell.attack::after {
+      content: ""; position: absolute; width: 74%; height: 74%;
+      border: 2px solid var(--p2); border-radius: 50%;
+    }
+    .piece {
+      width: 82%; height: 82%; border-radius: 50%;
+      display: grid; place-items: center; z-index: 1;
+      font-size: 5.4cqi; line-height: 1;
+      box-shadow: 0 3px 8px rgba(0,0,0,.4);
+    }
+    .piece.P1 { background: radial-gradient(circle at 30% 25%, #5eead4, #0f766e); }
+    .piece.P2 { background: radial-gradient(circle at 30% 25%, #fda4af, #9f1239); }
+
+    /* ---------- Chế độ trình chiếu: arena.html?view=1 ---------- */
+    .view-only { --side: 190px; }
+    .view-only .name, .view-only nav, .view-only .help { display: none; }
+    .view-only .cell { cursor: default; }
+    .view-only .cell:hover { filter: none; }
+
+    /* ---------- Màn hình hẹp: xếp dọc ---------- */
+    @media (max-width: 1100px) {
+      header { height: auto; flex-wrap: wrap; padding: 10px var(--gap); }
+      .name { margin-left: 0; }
+      .arena { height: auto; grid-template-columns: 1fr; grid-template-rows: none; }
+      .table {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        grid-template-areas: "head" "seats" "status" "board" "counts" "actions";
+      }
+      .t-seats { flex-direction: row; }
+      .t-counts { flex-direction: row; justify-content: space-between; }
+      .t-board { width: min(100%, 520px); justify-self: center; }
+      .help > div { right: auto; left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>OTT<span>v2</span><small>Đấu trường 4 bàn</small></h1>
+    <label class="name">Tên của bạn
+      <input id="player-name" placeholder="Nhập trước khi ngồi" maxlength="20" />
+    </label>
+    <details class="help">
+      <summary>Cách chơi</summary>
+      <div>
+        <p>Bấm <b>Ngồi Xanh</b> hoặc <b>Ngồi Đỏ</b> ở một bàn còn trống để chơi. Không ngồi thì bạn đang xem cả 4 bàn.</p>
+        <p>Mỗi lượt đi 1 ô theo 8 hướng. Đấm ✊ ăn Kéo ✌️, Kéo ăn Lá ✋, Lá ăn Đấm. Hai quân cùng loại chỉ chặn nhau.</p>
+        <p>Thắng khi đưa quân vào ô đích (Xanh → i9, Đỏ → a1) hoặc ăn sạch một loại quân của đối thủ.</p>
+        <p><span class="key move"></span>ô đi được &nbsp; <span class="key attack"></span>ô ăn được &nbsp; <span class="key goal"></span>ô đích</p>
+      </div>
+    </details>
+    <nav>
+      <a href="./index.html">Bài 1</a>
+      <a href="./arena.html?view=1" target="_blank">Trình chiếu ↗</a>
+    </nav>
+  </header>
+
+  <main class="arena">
+    <section class="table" id="board-1"></section>
+    <section class="table" id="board-2"></section>
+    <section class="table" id="board-3"></section>
+    <section class="table" id="board-4"></section>
+  </main>
+
+  <script type="module" src="./arenaNetwork.js"></script>
+</body>
+</html>
